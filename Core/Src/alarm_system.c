@@ -1,17 +1,22 @@
 #include "alarm_system.h"
 
-int user_input;
+char* user_input;
+// char buffer[5];
 system_state* alarm_system;
 
 void System_Init(void) {
-	alarm_system->state = ready;
-	alarm_system->password= 1001;
+	alarm_system = (system_state*) calloc(1, sizeof(system_state));
+	alarm_system->password = malloc(sizeof(char) * 5);
+	user_input = malloc(sizeof(char) * 5);
 
-	user_input = 0;
+	alarm_system->state = ready;
+	alarm_system->password= "1001";
+
+	user_input = "\0";
 }
 
 bool Check_Password(void) {
-	if (user_input == alarm_system->password)		return true;
+	if (!strcmp(alarm_system->password, user_input))		return true;
 	return false;
 }
 
@@ -31,7 +36,7 @@ bool Unlock_System(void) {
 	return false;
 }
 
-int Change_Password(int new_password) {
+int Change_Password(char* new_password) {
 	if (Check_Password()) {
 		alarm_system->password = new_password;
 		return 0;

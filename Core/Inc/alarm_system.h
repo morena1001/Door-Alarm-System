@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
 // DEFINES
 // for enabling and disabling the passive buzzer
@@ -21,16 +22,17 @@
 #define OPEN_ON_SET_SILENT_LENGTH		453
 
 // the amount of times the countdown beep will sound (10 seconds in total, once per second)
-#define LOCK_COUNTDOWN_COUNT 			10
+#define LOCK_COUNTDOWN_COUNT 			20
 
 // PRIVATE VARIABLES
 typedef struct System_State system_state;
 enum State { ready, set };
-extern int user_input;
+extern char* user_input;
+// extern char buffer[5];
 extern system_state* alarm_system;
 
 struct System_State {
-	int password;
+	char* password;
 	enum State state;
 };
 
@@ -42,7 +44,7 @@ void System_Init(void);
 bool Check_Password(void);
 bool Lock_System(void);
 bool Unlock_System(void);
-int Change_Password(int new_password);
+int Change_Password(char* new_password);
 
 
 #endif /* INC_TELEGRAPH_CONFIGURATIONS_H_ */

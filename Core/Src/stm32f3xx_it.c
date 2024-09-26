@@ -22,7 +22,10 @@
 #include "stm32f3xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdarg.h>
+
 #include "liquidcrystal_i2c.h"
+#include "alarm_system.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,12 +45,17 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
+double raw = 0.0;
+char buffer[5];
+uint8_t idx = 0;
+uint16_t buzzer_length_counter = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-
+void Update_Buffer(char val);
+void Generate_Tone(bool enable, ...);
+void Generate_Silenece(int length);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -56,11 +64,13 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
-extern TIM_HandleTypeDef htim16;
+extern TIM_HandleTypeDef htim6;
 /* USER CODE BEGIN EV */
-
+extern TIM_HandleTypeDef htim1;
+extern ADC_HandleTypeDef hadc1;
+extern I2C_HandleTypeDef hi2c1;
+extern UART_HandleTypeDef huart2;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -208,6 +218,26 @@ void EXTI0_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI0_IRQn 0 */
 
+	// Simple software debouncing
+	for (int i = 0; i < 65535; i++);
+
+	if (HAL_GPIO_ReadPin(LUB_GPIO_Port, LUB_Pin)) {
+		// If the system cannot be locked, try to unlock the system
+		user_input = buffer;
+		if (!Lock_System())	{
+			if (Unlock_System()) {
+
+			}
+		} else {
+
+		}
+
+
+		// Reset input from number pad
+		buffer[0] = '\0';
+		idx = 0;
+	}
+
   /* USER CODE END EXTI0_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(LUB_Pin);
   /* USER CODE BEGIN EXTI0_IRQn 1 */
@@ -222,6 +252,13 @@ void EXTI1_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI1_IRQn 0 */
 
+	// Simple software debouncing
+	for (int i = 0; i < 65535; i++);
+
+	if (HAL_GPIO_ReadPin(RPB_GPIO_Port, RPB_Pin)) {
+
+	}
+
   /* USER CODE END EXTI1_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(RPB_Pin);
   /* USER CODE BEGIN EXTI1_IRQn 1 */
@@ -230,27 +267,12 @@ void EXTI1_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles TIM1 update and TIM16 interrupts.
-  */
-void TIM1_UP_TIM16_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 0 */
-
-  /* USER CODE END TIM1_UP_TIM16_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim1);
-  HAL_TIM_IRQHandler(&htim16);
-  /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 1 */
-
-  /* USER CODE END TIM1_UP_TIM16_IRQn 1 */
-}
-
-/**
   * @brief This function handles TIM2 global interrupt.
   */
 void TIM2_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
-
+	if (!buzzer_length_counter--)	Generate_Tone(false);
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
@@ -258,6 +280,63 @@ void TIM2_IRQHandler(void)
   /* USER CODE END TIM2_IRQn 1 */
 }
 
-/* USER CODE BEGIN 1 */
+/**
+  * @brief This function handles TIM6 global interrupt, DAC interrupts.
+  */
+void TIM6_DAC_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
 
+	// Poll for the value of the IR sensor
+	HAL_ADC_Start(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1, 100);
+	raw = (double) HAL_ADC_GetValue(&hadc1);
+
+	// At raw < 1000.0, the door has been opened enough to trigger the alarm
+	if (raw < 1000.0) {
+		// BEGIN TO SOUND THE ALARM
+	}
+
+	// Poll for the number pad
+	if      (!HAL_GPIO_ReadPin(NP0_GPIO_Port, NP0_Pin))     Update_Buffer('0');
+	else if (!HAL_GPIO_ReadPin(NP1_GPIO_Port, NP1_Pin)) 	Update_Buffer('1');
+	else if (!HAL_GPIO_ReadPin(NP2_GPIO_Port, NP2_Pin))		Update_Buffer('2');
+	else if (!HAL_GPIO_ReadPin(NP3_GPIO_Port, NP3_Pin))		Update_Buffer('3');
+	else if (!HAL_GPIO_ReadPin(NP4_GPIO_Port, NP4_Pin))		Update_Buffer('4');
+	else if (!HAL_GPIO_ReadPin(NP5_GPIO_Port, NP5_Pin))		Update_Buffer('5');
+	else if (!HAL_GPIO_ReadPin(NP6_GPIO_Port, NP6_Pin))		Update_Buffer('6');
+	else if (!HAL_GPIO_ReadPin(NP7_GPIO_Port, NP7_Pin))		Update_Buffer('7');
+	else if (!HAL_GPIO_ReadPin(NP8_GPIO_Port, NP8_Pin))		Update_Buffer('8');
+	else if (!HAL_GPIO_ReadPin(NP9_GPIO_Port, NP9_Pin))		Update_Buffer('9');
+
+  /* USER CODE END TIM6_DAC_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim6);
+  /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
+
+  /* USER CODE END TIM6_DAC_IRQn 1 */
+}
+
+/* USER CODE BEGIN 1 */
+void Update_Buffer(char val) {
+	if (idx < 3)
+		buffer[idx++] = val;
+}
+
+void Generate_Tone(bool enable, ...) {
+	if (enable) {
+		va_list arg_list;
+		va_start(arg_list, enable);
+
+		__HAL_TIM_SET_AUTORELOAD(&htim1, ENABLE_BEEP * 2);
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, ENABLE_BEEP);
+		buzzer_length_counter = (uint16_t) va_arg(arg_list, int);
+	} else {
+		__HAL_TIM_SET_AUTORELOAD(&htim1, 0);
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+	}
+}
+
+void Generate_Silenece(int length) {
+	buzzer_length_counter = (uint16_t) length;
+}
 /* USER CODE END 1 */
