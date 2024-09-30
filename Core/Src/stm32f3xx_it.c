@@ -49,6 +49,8 @@ double raw = 0.0;
 char buffer[5];
 uint8_t idx = 0;
 uint16_t buzzer_length_counter = 0;
+
+char m[50];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -291,6 +293,9 @@ void TIM6_DAC_IRQHandler(void)
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, 100);
 	raw = (double) HAL_ADC_GetValue(&hadc1);
+//	sprintf(m, "%f\r\n", raw);
+//	HAL_UART_Transmit(&huart2, (uint8_t*) m, 20, 100);
+
 
 	// At raw < 1000.0, the door has been opened enough to trigger the alarm
 	if (raw < 1000.0) {

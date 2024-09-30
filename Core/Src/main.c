@@ -91,7 +91,9 @@ void AlarmPeripheral_Init(void) {
 void AlarmIO_Test(void) {
 	// Test LCD screen
 	HD44780_SetCursor(0, 0);
-	HD44780_PrintStr("WELCOME TO VANDAR SYSTEMS");
+	HD44780_PrintStr("WELCOME TO");
+	HD44780_SetCursor(0, 1);
+	HD44780_PrintStr("VANDAR SYSTEMS");
 
 	// Test Passive buzzer
 	__HAL_TIM_SET_AUTORELOAD(&htim1, ENABLE_BEEP * 2);
@@ -99,20 +101,20 @@ void AlarmIO_Test(void) {
 
 	// Test LEDs
 	HAL_GPIO_WritePin(RM_GPIO_Port, RM_Pin, GPIO_PIN_SET);
-	HAL_Delay(500);
+	HAL_Delay(250);
 
 	HAL_GPIO_WritePin(SM_GPIO_Port, SM_Pin, GPIO_PIN_SET);
-	HAL_Delay(500);
+	HAL_Delay(250);
 
 	HD44780_Clear();
 	__HAL_TIM_SET_AUTORELOAD(&htim1, DISABLE_BEEP * 2);
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, DISABLE_BEEP);
 
 	HAL_GPIO_WritePin(RM_GPIO_Port, RM_Pin, GPIO_PIN_RESET);
-	HAL_Delay(500);
+	HAL_Delay(250);
 
 	HAL_GPIO_WritePin(SM_GPIO_Port, SM_Pin, GPIO_PIN_RESET);
-	HAL_Delay(500);
+	HAL_Delay(250);
 }
 /* USER CODE END 0 */
 
@@ -153,6 +155,7 @@ int main(void)
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
   AlarmPeripheral_Init();
+  AlarmIO_Test();
   /* USER CODE END 2 */
 
   /* Infinite loop */
