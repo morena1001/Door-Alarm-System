@@ -16,7 +16,7 @@
 
 // the lengths at which the beep will sound depending on the event
 #define LOCK_COUNTDOWN_BEEP_LEGNTH		330
-#define INPUT_BEEP_LENGTH				165
+#define INPUT_BEEP_LENGTH				83 //165
 #define OPEN_ON_READY_BEEP_LENGTH		494
 #define OPEN_ON_SET_BEEP_LENGTH			41
 #define OPEN_ON_SET_SILENT_LENGTH		453
@@ -37,7 +37,7 @@ struct System_State {
 };
 
 // MACROS
-#define __GET_SYSTEM_STATE  alarm_system->state    //(__HANDLE__)	((__HANDLE__).state)
+#define __GET_SYSTEM_STATE  alarm_system->state
 
 // FUNCTION PROTOTYPES
 void System_Init(void);

@@ -22,8 +22,6 @@
 #include "stm32f3xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdarg.h>
-
 #include "liquidcrystal_i2c.h"
 #include "alarm_system.h"
 /* USER CODE END Includes */
@@ -50,14 +48,20 @@ char buffer[5];
 uint8_t idx = 0;
 uint16_t buzzer_length_counter = 0;
 
+uint8_t alarm_rhythm_counter = 0;
+bool triggered = false;
+bool setting = false;
+
 char m[50];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
 void Update_Buffer(char val);
-void Generate_Tone(bool enable, ...);
+void Generate_Tone(bool enable, uint16_t tone_length);
 void Generate_Silenece(int length);
+static inline void Check_IR_Signal(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -225,13 +229,24 @@ void EXTI0_IRQHandler(void)
 
 	if (HAL_GPIO_ReadPin(LUB_GPIO_Port, LUB_Pin)) {
 		// If the system cannot be locked, try to unlock the system
-		user_input = buffer;
-		if (!Lock_System())	{
-			if (Unlock_System()) {
+		Check_IR_Signal();
 
+		user_input = buffer;
+		// The door has to be closed for the system to be able to lock
+		if (raw <= 1000.0 || !Lock_System())	{
+			if (Unlock_System()) {
+				triggered = false;
+				alarm_rhythm_counter = 0;
+				user_input = NULL;
+				Generate_Tone(false, 0);
+			} else {
+				alarm_rhythm_counter = 2;
+				Generate_Tone(false, OPEN_ON_SET_SILENT_LENGTH);
 			}
 		} else {
-
+			setting = true;
+			alarm_rhythm_counter = LOCK_COUNTDOWN_COUNT;
+			Generate_Tone(true, LOCK_COUNTDOWN_BEEP_LEGNTH);
 		}
 
 
@@ -274,7 +289,27 @@ void EXTI1_IRQHandler(void)
 void TIM2_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
-	if (!buzzer_length_counter--)	Generate_Tone(false);
+	if (!buzzer_length_counter--) {
+		if (setting) {
+			alarm_rhythm_counter--;
+
+			Generate_Tone(alarm_rhythm_counter % 2 == 0 ? true : false, LOCK_COUNTDOWN_BEEP_LEGNTH);
+			if (alarm_rhythm_counter == 0)		setting = false;
+		} else if (triggered) {
+			alarm_rhythm_counter++;
+			alarm_rhythm_counter %= 6;
+
+			Generate_Tone(alarm_rhythm_counter % 2 == 0 ? false : true, alarm_rhythm_counter == 2 ? OPEN_ON_SET_SILENT_LENGTH : OPEN_ON_SET_BEEP_LENGTH);
+
+//			if (alarm_rhythm_counter == 2) {
+//				Generate_Tone(false, OPEN_ON_SET_SILENT_LENGTH);
+//			} else {
+//				Generate_Tone(alarm_rhythm_counter % 2 == 0 ? false : true, OPEN_ON_SET_BEEP_LENGTH);
+//			}
+		} else {
+			Generate_Tone(false, 0);
+		}
+	}
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
@@ -290,29 +325,53 @@ void TIM6_DAC_IRQHandler(void)
   /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
 
 	// Poll for the value of the IR sensor
-	HAL_ADC_Start(&hadc1);
-	HAL_ADC_PollForConversion(&hadc1, 100);
-	raw = (double) HAL_ADC_GetValue(&hadc1);
-//	sprintf(m, "%f\r\n", raw);
-//	HAL_UART_Transmit(&huart2, (uint8_t*) m, 20, 100);
-
+	Check_IR_Signal();
 
 	// At raw < 1000.0, the door has been opened enough to trigger the alarm
 	if (raw < 1000.0) {
 		// BEGIN TO SOUND THE ALARM
+		if (__GET_SYSTEM_STATE == ready) {
+			Generate_Tone(true, OPEN_ON_READY_BEEP_LENGTH);
+		} else {
+			triggered = true;
+			alarm_rhythm_counter = 1;
+			Generate_Tone(true, OPEN_ON_SET_BEEP_LENGTH);
+
+		}
 	}
 
 	// Poll for the number pad
-	if      (!HAL_GPIO_ReadPin(NP0_GPIO_Port, NP0_Pin))     Update_Buffer('0');
-	else if (!HAL_GPIO_ReadPin(NP1_GPIO_Port, NP1_Pin)) 	Update_Buffer('1');
-	else if (!HAL_GPIO_ReadPin(NP2_GPIO_Port, NP2_Pin))		Update_Buffer('2');
-	else if (!HAL_GPIO_ReadPin(NP3_GPIO_Port, NP3_Pin))		Update_Buffer('3');
-	else if (!HAL_GPIO_ReadPin(NP4_GPIO_Port, NP4_Pin))		Update_Buffer('4');
-	else if (!HAL_GPIO_ReadPin(NP5_GPIO_Port, NP5_Pin))		Update_Buffer('5');
-	else if (!HAL_GPIO_ReadPin(NP6_GPIO_Port, NP6_Pin))		Update_Buffer('6');
-	else if (!HAL_GPIO_ReadPin(NP7_GPIO_Port, NP7_Pin))		Update_Buffer('7');
-	else if (!HAL_GPIO_ReadPin(NP8_GPIO_Port, NP8_Pin))		Update_Buffer('8');
-	else if (!HAL_GPIO_ReadPin(NP9_GPIO_Port, NP9_Pin))		Update_Buffer('9');
+	if      (!HAL_GPIO_ReadPin(NP0_GPIO_Port, NP0_Pin)) {
+		Generate_Tone(true, INPUT_BEEP_LENGTH);
+	    Update_Buffer('0');
+	} else if (!HAL_GPIO_ReadPin(NP1_GPIO_Port, NP1_Pin)) {
+		Generate_Tone(true, INPUT_BEEP_LENGTH);
+		Update_Buffer('1');
+	} else if (!HAL_GPIO_ReadPin(NP2_GPIO_Port, NP2_Pin)) {
+		Generate_Tone(true, INPUT_BEEP_LENGTH);
+		Update_Buffer('2');
+	} else if (!HAL_GPIO_ReadPin(NP3_GPIO_Port, NP3_Pin)) {
+		Generate_Tone(true, INPUT_BEEP_LENGTH);
+		Update_Buffer('3');
+	} else if (!HAL_GPIO_ReadPin(NP4_GPIO_Port, NP4_Pin)) {
+		Generate_Tone(true, INPUT_BEEP_LENGTH);
+		Update_Buffer('4');
+	} else if (!HAL_GPIO_ReadPin(NP5_GPIO_Port, NP5_Pin)) {
+		Generate_Tone(true, INPUT_BEEP_LENGTH);
+		Update_Buffer('5');
+	} else if (!HAL_GPIO_ReadPin(NP6_GPIO_Port, NP6_Pin)) {
+		Generate_Tone(true, INPUT_BEEP_LENGTH);
+		Update_Buffer('6');
+	} else if (!HAL_GPIO_ReadPin(NP7_GPIO_Port, NP7_Pin)) {
+		Generate_Tone(true, INPUT_BEEP_LENGTH);
+		Update_Buffer('7');
+	} else if (!HAL_GPIO_ReadPin(NP8_GPIO_Port, NP8_Pin)) {
+		Generate_Tone(true, INPUT_BEEP_LENGTH);
+		Update_Buffer('8');
+	} else if (!HAL_GPIO_ReadPin(NP9_GPIO_Port, NP9_Pin)) {
+		Generate_Tone(true, INPUT_BEEP_LENGTH);
+		Update_Buffer('9');
+	}
 
   /* USER CODE END TIM6_DAC_IRQn 0 */
   HAL_TIM_IRQHandler(&htim6);
@@ -327,21 +386,25 @@ void Update_Buffer(char val) {
 		buffer[idx++] = val;
 }
 
-void Generate_Tone(bool enable, ...) {
+void Generate_Tone(bool enable, uint16_t tone_length) {
 	if (enable) {
-		va_list arg_list;
-		va_start(arg_list, enable);
-
 		__HAL_TIM_SET_AUTORELOAD(&htim1, ENABLE_BEEP * 2);
 		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, ENABLE_BEEP);
-		buzzer_length_counter = (uint16_t) va_arg(arg_list, int);
 	} else {
 		__HAL_TIM_SET_AUTORELOAD(&htim1, 0);
 		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
 	}
+
+	buzzer_length_counter = tone_length;
 }
 
 void Generate_Silenece(int length) {
 	buzzer_length_counter = (uint16_t) length;
+}
+
+static inline void Check_IR_Signal(void) {
+	HAL_ADC_Start(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1, 100);
+	raw = (double) HAL_ADC_GetValue(&hadc1);
 }
 /* USER CODE END 1 */
