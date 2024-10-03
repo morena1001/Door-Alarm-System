@@ -16,7 +16,7 @@
 
 // the lengths at which the beep will sound depending on the event
 #define LOCK_COUNTDOWN_BEEP_LEGNTH		330
-#define INPUT_BEEP_LENGTH				83 //165
+#define INPUT_BEEP_LENGTH				83//165
 #define OPEN_ON_READY_BEEP_LENGTH		494
 #define OPEN_ON_SET_BEEP_LENGTH			41
 #define OPEN_ON_SET_SILENT_LENGTH		453

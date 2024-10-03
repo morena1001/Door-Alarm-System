@@ -51,6 +51,9 @@ uint16_t buzzer_length_counter = 0;
 uint8_t alarm_rhythm_counter = 0;
 bool triggered = false;
 bool setting = false;
+bool door_opened = false;
+bool overwritten = false;
+uint8_t button_pressed = 10;
 
 char m[50];
 /* USER CODE END PV */
@@ -235,6 +238,10 @@ void EXTI0_IRQHandler(void)
 		// The door has to be closed for the system to be able to lock
 		if (raw <= 1000.0 || !Lock_System())	{
 			if (Unlock_System()) {
+				HAL_GPIO_WritePin(SM_GPIO_Port, SM_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(RM_GPIO_Port, RM_Pin, GPIO_PIN_SET);
+
+				setting = false;
 				triggered = false;
 				alarm_rhythm_counter = 0;
 				user_input = NULL;
@@ -244,6 +251,9 @@ void EXTI0_IRQHandler(void)
 				Generate_Tone(false, OPEN_ON_SET_SILENT_LENGTH);
 			}
 		} else {
+			HAL_GPIO_WritePin(SM_GPIO_Port, SM_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(RM_GPIO_Port, RM_Pin, GPIO_PIN_RESET);
+
 			setting = true;
 			alarm_rhythm_counter = LOCK_COUNTDOWN_COUNT;
 			Generate_Tone(true, LOCK_COUNTDOWN_BEEP_LEGNTH);
@@ -273,7 +283,9 @@ void EXTI1_IRQHandler(void)
 	for (int i = 0; i < 65535; i++);
 
 	if (HAL_GPIO_ReadPin(RPB_GPIO_Port, RPB_Pin)) {
-
+//		HD44780_Clear();
+//		buffer[0] = '\0';
+//		idx = 0;
 	}
 
   /* USER CODE END EXTI1_IRQn 0 */
@@ -290,23 +302,28 @@ void TIM2_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
 	if (!buzzer_length_counter--) {
+
 		if (setting) {
 			alarm_rhythm_counter--;
 
 			Generate_Tone(alarm_rhythm_counter % 2 == 0 ? true : false, LOCK_COUNTDOWN_BEEP_LEGNTH);
 			if (alarm_rhythm_counter == 0)		setting = false;
-		} else if (triggered) {
+		} else if (triggered && !overwritten) {
 			alarm_rhythm_counter++;
 			alarm_rhythm_counter %= 6;
 
 			Generate_Tone(alarm_rhythm_counter % 2 == 0 ? false : true, alarm_rhythm_counter == 2 ? OPEN_ON_SET_SILENT_LENGTH : OPEN_ON_SET_BEEP_LENGTH);
-
-//			if (alarm_rhythm_counter == 2) {
-//				Generate_Tone(false, OPEN_ON_SET_SILENT_LENGTH);
-//			} else {
-//				Generate_Tone(alarm_rhythm_counter % 2 == 0 ? false : true, OPEN_ON_SET_BEEP_LENGTH);
-//			}
 		} else {
+			buzzer_length_counter = 0;
+
+			if (overwritten) {
+				overwritten = false;
+				if (triggered) {
+					alarm_rhythm_counter = 2;
+					Generate_Tone(false, OPEN_ON_SET_SILENT_LENGTH);
+				}
+			}
+
 			Generate_Tone(false, 0);
 		}
 	}
@@ -327,51 +344,128 @@ void TIM6_DAC_IRQHandler(void)
 	// Poll for the value of the IR sensor
 	Check_IR_Signal();
 
-	// At raw < 1000.0, the door has been opened enough to trigger the alarm
-	if (raw < 1000.0) {
-		// BEGIN TO SOUND THE ALARM
-		if (__GET_SYSTEM_STATE == ready) {
-			Generate_Tone(true, OPEN_ON_READY_BEEP_LENGTH);
-		} else {
-			triggered = true;
-			alarm_rhythm_counter = 1;
-			Generate_Tone(true, OPEN_ON_SET_BEEP_LENGTH);
+	sprintf(m, "%f\r\n", raw);
+	HAL_UART_Transmit(&huart2, (uint8_t*) m, 50, 100);
 
+	// At raw < 1000.0, the door has been opened enough to trigger the alarm
+	if (raw < 800.0) {
+		// BEGIN TO SOUND THE ALARM
+		if (__GET_SYSTEM_STATE == ready || setting) {
+			if (!door_opened) {
+				Generate_Tone(true, OPEN_ON_READY_BEEP_LENGTH);
+
+				door_opened = true;
+			}
+		} else {
+			if (!door_opened) {
+				triggered = true;
+				alarm_rhythm_counter = 1;
+				Generate_Tone(true, OPEN_ON_SET_BEEP_LENGTH);
+
+				door_opened = true;
+			}
 		}
+	} else {
+		door_opened = false;
 	}
 
 	// Poll for the number pad
-	if      (!HAL_GPIO_ReadPin(NP0_GPIO_Port, NP0_Pin)) {
-		Generate_Tone(true, INPUT_BEEP_LENGTH);
-	    Update_Buffer('0');
+	if        (!HAL_GPIO_ReadPin(NP0_GPIO_Port, NP0_Pin)) {
+		if (button_pressed != 0) {
+			button_pressed = 0;
+			overwritten = true;
+
+			Generate_Tone(true, INPUT_BEEP_LENGTH);
+			Update_Buffer('0');
+		}
 	} else if (!HAL_GPIO_ReadPin(NP1_GPIO_Port, NP1_Pin)) {
-		Generate_Tone(true, INPUT_BEEP_LENGTH);
-		Update_Buffer('1');
+		if (button_pressed != 1) {
+			button_pressed = 1;
+			overwritten = true;
+
+			Generate_Tone(true, INPUT_BEEP_LENGTH);
+			Update_Buffer('1');
+		}
 	} else if (!HAL_GPIO_ReadPin(NP2_GPIO_Port, NP2_Pin)) {
-		Generate_Tone(true, INPUT_BEEP_LENGTH);
-		Update_Buffer('2');
+		if (button_pressed != 2) {
+			button_pressed = 2;
+			overwritten = true;
+
+			Generate_Tone(true, INPUT_BEEP_LENGTH);
+			Update_Buffer('2');
+		}
 	} else if (!HAL_GPIO_ReadPin(NP3_GPIO_Port, NP3_Pin)) {
-		Generate_Tone(true, INPUT_BEEP_LENGTH);
-		Update_Buffer('3');
+		if (button_pressed != 3) {
+			button_pressed = 3;
+			overwritten = true;
+
+			Generate_Tone(true, INPUT_BEEP_LENGTH);
+			Update_Buffer('3');
+		}
 	} else if (!HAL_GPIO_ReadPin(NP4_GPIO_Port, NP4_Pin)) {
-		Generate_Tone(true, INPUT_BEEP_LENGTH);
-		Update_Buffer('4');
+		if (button_pressed != 4) {
+			button_pressed = 4;
+			overwritten = true;
+
+			Generate_Tone(true, INPUT_BEEP_LENGTH);
+			Update_Buffer('4');
+		}
 	} else if (!HAL_GPIO_ReadPin(NP5_GPIO_Port, NP5_Pin)) {
-		Generate_Tone(true, INPUT_BEEP_LENGTH);
-		Update_Buffer('5');
+		if (button_pressed != 5) {
+			button_pressed = 5;
+			overwritten = true;
+
+			Generate_Tone(true, INPUT_BEEP_LENGTH);
+			Update_Buffer('5');
+		}
 	} else if (!HAL_GPIO_ReadPin(NP6_GPIO_Port, NP6_Pin)) {
-		Generate_Tone(true, INPUT_BEEP_LENGTH);
-		Update_Buffer('6');
+		if (button_pressed != 6) {
+			button_pressed = 6;
+			overwritten = true;
+
+			Generate_Tone(true, INPUT_BEEP_LENGTH);
+			Update_Buffer('6');
+		}
 	} else if (!HAL_GPIO_ReadPin(NP7_GPIO_Port, NP7_Pin)) {
-		Generate_Tone(true, INPUT_BEEP_LENGTH);
-		Update_Buffer('7');
+		if (button_pressed != 7) {
+			button_pressed = 7;
+			overwritten = true;
+
+			Generate_Tone(true, INPUT_BEEP_LENGTH);
+			Update_Buffer('7');
+		}
 	} else if (!HAL_GPIO_ReadPin(NP8_GPIO_Port, NP8_Pin)) {
-		Generate_Tone(true, INPUT_BEEP_LENGTH);
-		Update_Buffer('8');
+		if (button_pressed != 8) {
+			button_pressed = 8;
+			overwritten = true;
+
+			Generate_Tone(true, INPUT_BEEP_LENGTH);
+			Update_Buffer('8');
+		}
 	} else if (!HAL_GPIO_ReadPin(NP9_GPIO_Port, NP9_Pin)) {
-		Generate_Tone(true, INPUT_BEEP_LENGTH);
-		Update_Buffer('9');
+		if (button_pressed != 9) {
+			button_pressed = 9;
+			overwritten = true;
+
+			Generate_Tone(true, INPUT_BEEP_LENGTH);
+			Update_Buffer('9');
+		}
 	}
+
+
+
+
+
+		if      (HAL_GPIO_ReadPin(NP0_GPIO_Port, NP0_Pin) && button_pressed == 0)		button_pressed = 10;
+		else if (HAL_GPIO_ReadPin(NP1_GPIO_Port, NP1_Pin) && button_pressed == 1) 		button_pressed = 10;
+		else if (HAL_GPIO_ReadPin(NP2_GPIO_Port, NP2_Pin) && button_pressed == 2) 		button_pressed = 10;
+		else if (HAL_GPIO_ReadPin(NP3_GPIO_Port, NP3_Pin) && button_pressed == 3) 		button_pressed = 10;
+		else if (HAL_GPIO_ReadPin(NP4_GPIO_Port, NP4_Pin) && button_pressed == 4) 		button_pressed = 10;
+		else if (HAL_GPIO_ReadPin(NP5_GPIO_Port, NP5_Pin) && button_pressed == 5) 		button_pressed = 10;
+		else if (HAL_GPIO_ReadPin(NP6_GPIO_Port, NP6_Pin) && button_pressed == 6) 		button_pressed = 10;
+		else if (HAL_GPIO_ReadPin(NP7_GPIO_Port, NP7_Pin) && button_pressed == 7) 		button_pressed = 10;
+		else if (HAL_GPIO_ReadPin(NP8_GPIO_Port, NP8_Pin) && button_pressed == 8)		button_pressed = 10;
+		else if (HAL_GPIO_ReadPin(NP9_GPIO_Port, NP9_Pin) && button_pressed == 9)		button_pressed = 10;
 
   /* USER CODE END TIM6_DAC_IRQn 0 */
   HAL_TIM_IRQHandler(&htim6);
@@ -382,7 +476,10 @@ void TIM6_DAC_IRQHandler(void)
 
 /* USER CODE BEGIN 1 */
 void Update_Buffer(char val) {
-	if (idx < 3)
+	HD44780_SetCursor(idx, 0);
+	HD44780_PrintStr((char*)&val);
+
+	if (idx < 4)
 		buffer[idx++] = val;
 }
 

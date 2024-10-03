@@ -86,9 +86,16 @@ void AlarmPeripheral_Init(void) {
 	// Set up LCD screen
 	HD44780_Init(2);
 	HD44780_Clear();
+
+	// Set Ready Mode LED
+	HAL_GPIO_WritePin(RM_GPIO_Port, RM_Pin, GPIO_PIN_SET);
 }
 
 void AlarmIO_Test(void) {
+	HAL_TIM_Base_Stop_IT(&htim6);
+	HAL_TIM_Base_Stop_IT(&htim2);
+	HAL_GPIO_WritePin(RM_GPIO_Port, RM_Pin, GPIO_PIN_RESET);
+
 	// Test LCD screen
 	HD44780_SetCursor(0, 0);
 	HD44780_PrintStr("WELCOME TO");
@@ -115,6 +122,10 @@ void AlarmIO_Test(void) {
 
 	HAL_GPIO_WritePin(SM_GPIO_Port, SM_Pin, GPIO_PIN_RESET);
 	HAL_Delay(250);
+
+	HAL_TIM_Base_Start_IT(&htim6);
+	HAL_TIM_Base_Start_IT(&htim2);
+	HAL_GPIO_WritePin(RM_GPIO_Port, RM_Pin, GPIO_PIN_SET);
 }
 /* USER CODE END 0 */
 
@@ -155,7 +166,8 @@ int main(void)
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
   AlarmPeripheral_Init();
-  AlarmIO_Test();
+  System_Init();
+//  AlarmIO_Test();
   /* USER CODE END 2 */
 
   /* Infinite loop */
