@@ -45,6 +45,7 @@
 /* USER CODE BEGIN PV */
 double raw = 0.0;
 char buffer[5];
+char current_input[2];
 uint8_t idx = 0;
 uint16_t buzzer_length_counter = 0;
 
@@ -245,7 +246,7 @@ void EXTI0_IRQHandler(void)
 				triggered = false;
 				alarm_rhythm_counter = 0;
 				user_input = NULL;
-				Generate_Tone(false, 0);
+				Generate_Tone(true, OPEN_ON_READY_BEEP_LENGTH);
 			} else {
 				alarm_rhythm_counter = 2;
 				Generate_Tone(false, OPEN_ON_SET_SILENT_LENGTH);
@@ -263,6 +264,9 @@ void EXTI0_IRQHandler(void)
 		// Reset input from number pad
 		buffer[0] = '\0';
 		idx = 0;
+
+		// Clear I2C screen
+		HD44780_Clear();
 	}
 
   /* USER CODE END EXTI0_IRQn 0 */
@@ -476,7 +480,8 @@ void TIM6_DAC_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 void Update_Buffer(char val) {
 	HD44780_SetCursor(idx, 0);
-	HD44780_PrintStr((char*)&val);
+	current_input[0] = val;
+	HD44780_PrintStr(current_input);
 
 	if (idx < 4)
 		buffer[idx++] = val;

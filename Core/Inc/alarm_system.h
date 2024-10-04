@@ -15,11 +15,11 @@
 #define DISABLE_BEEP 					0
 
 // the lengths at which the beep will sound depending on the event
-#define LOCK_COUNTDOWN_BEEP_LEGNTH		330
+#define LOCK_COUNTDOWN_BEEP_LEGNTH		248//330
 #define INPUT_BEEP_LENGTH				83//165
-#define OPEN_ON_READY_BEEP_LENGTH		494
-#define OPEN_ON_SET_BEEP_LENGTH			41
-#define OPEN_ON_SET_SILENT_LENGTH		453
+#define OPEN_ON_READY_BEEP_LENGTH		247//494
+#define OPEN_ON_SET_BEEP_LENGTH			28//41
+#define OPEN_ON_SET_SILENT_LENGTH		227//453
 
 // the amount of times the countdown beep will sound (10 seconds in total, once per second)
 #define LOCK_COUNTDOWN_COUNT 			20
