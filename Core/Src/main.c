@@ -165,8 +165,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-  AlarmPeripheral_Init();
   System_Init();
+  AlarmPeripheral_Init();
 //  AlarmIO_Test();
   /* USER CODE END 2 */
 

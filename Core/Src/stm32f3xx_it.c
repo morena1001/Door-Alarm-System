@@ -302,7 +302,6 @@ void TIM2_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
 	if (!buzzer_length_counter--) {
-
 		if (setting) {
 			alarm_rhythm_counter--;
 
@@ -322,9 +321,9 @@ void TIM2_IRQHandler(void)
 					alarm_rhythm_counter = 2;
 					Generate_Tone(false, OPEN_ON_SET_SILENT_LENGTH);
 				}
+			} else {
+				Generate_Tone(false, 0);
 			}
-
-			Generate_Tone(false, 0);
 		}
 	}
   /* USER CODE END TIM2_IRQn 0 */
@@ -344,8 +343,8 @@ void TIM6_DAC_IRQHandler(void)
 	// Poll for the value of the IR sensor
 	Check_IR_Signal();
 
-	sprintf(m, "%f\r\n", raw);
-	HAL_UART_Transmit(&huart2, (uint8_t*) m, 50, 100);
+//	sprintf(m, "%f\r\n", raw);
+//	HAL_UART_Transmit(&huart2, (uint8_t*) m, 50, 100);
 
 	// At raw < 1000.0, the door has been opened enough to trigger the alarm
 	if (raw < 800.0) {

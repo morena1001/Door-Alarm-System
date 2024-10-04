@@ -10,8 +10,8 @@
 ../Core/Src/stm32f3xx_it.c:226:6:EXTI0_IRQHandler	16	static
 ../Core/Src/stm32f3xx_it.c:278:6:EXTI1_IRQHandler	16	static
 ../Core/Src/stm32f3xx_it.c:301:6:TIM2_IRQHandler	8	static
-../Core/Src/stm32f3xx_it.c:340:6:TIM6_DAC_IRQHandler	8	static
-../Core/Src/stm32f3xx_it.c:478:6:Update_Buffer	16	static
-../Core/Src/stm32f3xx_it.c:486:6:Generate_Tone	16	static
-../Core/Src/stm32f3xx_it.c:498:6:Generate_Silenece	16	static
-../Core/Src/stm32f3xx_it.c:502:20:Check_IR_Signal	8	static
+../Core/Src/stm32f3xx_it.c:339:6:TIM6_DAC_IRQHandler	8	static
+../Core/Src/stm32f3xx_it.c:477:6:Update_Buffer	16	static
+../Core/Src/stm32f3xx_it.c:485:6:Generate_Tone	16	static
+../Core/Src/stm32f3xx_it.c:497:6:Generate_Silenece	16	static
+../Core/Src/stm32f3xx_it.c:501:20:Check_IR_Signal	8	static
